@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jigsaw Puzzle</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <h1>パズルメーカー</h1>
+        </header>
+
+        <main>
+            <!-- Setup Screen -->
+            <section id="setup-screen" class="active">
+                <div class="card">
+                    <button id="resume-btn"
+                        style="width:100%; margin-bottom:20px; background:#2ecc71; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold; font-size:1.1rem; cursor:pointer;"
+                        hidden>続きから遊ぶ</button>
+                    <h2>1. 画像を選択</h2>
+                    <div class="upload-area" id="drop-zone">
+                        <input type="file" id="image-upload" accept="image/*" hidden>
+                        <div class="upload-placeholder">
+                            <span class="icon">📁</span>
+                            <p>クリックして画像を選択<br>またはドラッグ＆ドロップ</p>
+                            <button id="sample-btn"
+                                style="margin-top:10px; padding:5px 10px; cursor:pointer;">サンプル画像を使用</button>
+                        </div>
+                        <img id="preview-image" hidden alt="Preview">
+                    </div>
+
+                    <h2>2. 難易度を選択</h2>
+                    <div class="difficulty-container">
+                        <!-- Blue Group -->
+                        <div class="diff-group blue-group">
+                            <h3>おすすめ</h3>
+                            <div class="buttons-grid">
+                                <button class="diff-btn" data-pieces="9">
+                                    <span class="count">6~12ピース</span>
+                                </button>
+                                <button class="diff-btn" data-pieces="20">
+                                    <span class="count">12~24ピース</span>
+                                </button>
+                                <button class="diff-btn" data-pieces="35">
+                                    <span class="count">24~40ピース</span>
+                                </button>
+                                <button class="diff-btn" data-pieces="56">
+                                    <span class="count">50~60ピース</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Red Group -->
+                        <div class="diff-group red-group">
+                            <h3>一般・高難易度</h3>
+                            <div class="buttons-grid">
+                                <button class="diff-btn" data-pieces="150">
+                                    <span class="label">初心者むけ</span>
+                                    <span class="count">100~300</span>
+                                </button>
+                                <button class="diff-btn" data-pieces="500">
+                                    <span class="label">じっくり</span>
+                                    <span class="count">500</span>
+                                </button>
+                                <button class="diff-btn" data-pieces="1000">
+                                    <span class="label">超難問</span>
+                                    <span class="count">1000</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="start-btn" disabled>パズルを作成する</button>
+                </div>
+            </section>
+
+            <!-- Game Screen -->
+            <section id="game-screen">
+                <div class="toolbar">
+                    <button id="back-btn" class="secondary-btn">← 戻る</button>
+                    <button id="save-btn" class="secondary-btn">一時保存</button>
+                    <div class="timer" id="timer">00:00</div>
+                    <button id="hint-btn" class="secondary-btn">見本を見る</button>
+                    <button id="reset-btn" class="secondary-btn">リセット</button>
+                </div>
+                <div id="canvas-container">
+                    <canvas id="puzzle-canvas"></canvas>
+                </div>
+            </section>
+
+            <!-- Reset Modal -->
+            <div id="reset-modal" class="modal" hidden>
+                <div class="modal-content">
+                    <h2>パズルのリセット</h2>
+                    <p>配置をリセットしますか？</p>
+                    <div class="modal-buttons"
+                        style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                        <button id="reset-all-btn">全てバラバラにする</button>
+                        <button id="reset-unlocked-btn">合っていないピースだけ</button>
+                    </div>
+                    <button id="cancel-reset-btn" class="secondary-btn" style="margin-top: 10px;">キャンセル</button>
+                </div>
+            </div>
+
+            <!-- Completion Modal -->
+            <div id="completion-modal" class="modal" hidden>
+                <div class="modal-content">
+                    <h2>完成！おめでとう！！</h2>
+                    <p id="completion-time">Time: 00:00</p>
+                    <button id="play-again-btn">もう一度遊ぶ</button>
+                </div>
+            </div>
+            <!-- Notification Toast -->
+            <div id="toast" class="toast" hidden>保存しました！</div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
