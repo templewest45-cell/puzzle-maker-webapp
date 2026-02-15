@@ -119,8 +119,37 @@ function initControls() {
     });
     app.buttons.playAgain.addEventListener('click', () => {
         app.modal.hidden = true;
+        state.isComplete = false;
         switchScreen('setup');
     });
+
+    // View Completed Puzzle
+    const viewCompletedBtn = document.getElementById('view-completed-btn');
+    const backFromViewBtn = document.getElementById('back-from-view-btn');
+    const backFromViewWrap = document.getElementById('back-from-view-wrap');
+
+    if (viewCompletedBtn) {
+        viewCompletedBtn.addEventListener('click', () => {
+            // Hide the modal to show the completed puzzle
+            app.modal.hidden = true;
+            // Hide toolbar
+            document.querySelector('.toolbar').style.display = 'none';
+            // Show back button wrapper below canvas
+            if (backFromViewWrap) backFromViewWrap.style.display = 'block';
+            // Redraw to clear confetti
+            draw();
+        });
+    }
+
+    if (backFromViewBtn) {
+        backFromViewBtn.addEventListener('click', () => {
+            // Go back to setup screen
+            state.isComplete = false;
+            document.querySelector('.toolbar').style.display = '';
+            if (backFromViewWrap) backFromViewWrap.style.display = 'none';
+            switchScreen('setup');
+        });
+    }
 
     // Hint / Guide Toggle
     app.buttons.hint.addEventListener('click', () => {
