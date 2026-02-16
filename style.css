@@ -185,6 +185,19 @@ h3 {
     box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.2);
 }
 
+/* Green Group Buttons */
+.green-group .diff-btn:hover {
+    background: #f0fff4;
+    border-color: #a3e4b8;
+}
+
+.green-group .diff-btn.selected {
+    background: #f0fff4;
+    border-color: #2ecc71;
+    color: #27ae60;
+    box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2);
+}
+
 .diff-btn .label {
     font-weight: bold;
     font-size: 0.9rem;
@@ -321,6 +334,44 @@ canvas {
     border: none;
     border-radius: 6px;
     font-size: 1.1rem;
+}
+
+/* Game Screen - Scroll Prevention */
+#game-screen {
+    touch-action: none;
+    overflow: hidden;
+}
+
+/* Zoom Controls */
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.zoom-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    font-size: 1.2rem !important;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#zoom-level {
+    font-size: 0.8rem;
+    min-width: 40px;
+    text-align: center;
+    color: var(--text);
+}
+
+/* Assist Button Active State */
+#assist-btn.active {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
 }
 
 /* Toast Notification */

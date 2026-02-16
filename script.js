@@ -39,7 +39,16 @@ let state = {
     dragOffset: { x: 0, y: 0 },
     startTime: 0,
     timerInterval: null,
-    isComplete: false
+    isComplete: false,
+    // Viewport (zoom & pan)
+    viewX: 0,
+    viewY: 0,
+    viewZoom: 1,
+    isPanning: false,
+    panAnchor: { x: 0, y: 0 },
+    panStart: { x: 0, y: 0 },
+    // Assist mode
+    assistMode: false
 };
 
 const STYLE = {
@@ -157,6 +166,49 @@ function initControls() {
         draw();
     });
 
+    // Assist Mode Toggle
+    const assistBtn = document.getElementById('assist-btn');
+    if (assistBtn) {
+        assistBtn.addEventListener('click', () => {
+            state.assistMode = !state.assistMode;
+            assistBtn.classList.toggle('active', state.assistMode);
+            draw();
+        });
+    }
+
+    // Zoom Controls
+    const zoomInBtn = document.getElementById('zoom-in-btn');
+    const zoomOutBtn = document.getElementById('zoom-out-btn');
+
+    function applyZoom(newZoom) {
+        const oldZoom = state.viewZoom;
+        newZoom = Math.max(0.5, Math.min(3.0, newZoom));
+        if (newZoom === oldZoom) return;
+
+        // Zoom centered on canvas midpoint
+        const cx = app.canvas.width / 2;
+        const cy = app.canvas.height / 2;
+        state.viewX = cx - (cx - state.viewX) * (newZoom / oldZoom);
+        state.viewY = cy - (cy - state.viewY) * (newZoom / oldZoom);
+        state.viewZoom = newZoom;
+        updateZoomLabel();
+        draw();
+    }
+
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => applyZoom(state.viewZoom + 0.5));
+    }
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => {
+            applyZoom(state.viewZoom - 0.5);
+            // If back to 1x, reset pan too
+            if (state.viewZoom <= 1) {
+                resetView();
+                draw();
+            }
+        });
+    }
+
     // Resize
     window.addEventListener('resize', () => {
         if (!app.screens.game.hidden) resizeCanvas();
@@ -201,11 +253,40 @@ function handleFile(file) {
 function switchScreen(screenName) {
     Object.values(app.screens).forEach(s => s.classList.remove('active'));
     app.screens[screenName].classList.add('active');
+    // Scroll prevention on mobile
+    if (screenName === 'game') {
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+    }
+}
+
+// Coordinate conversion: screen -> world (accounting for zoom/pan)
+function screenToWorld(sx, sy) {
+    return {
+        x: (sx - state.viewX) / state.viewZoom,
+        y: (sy - state.viewY) / state.viewZoom
+    };
+}
+
+function resetView() {
+    state.viewX = 0;
+    state.viewY = 0;
+    state.viewZoom = 1;
+    updateZoomLabel();
+}
+
+function updateZoomLabel() {
+    const el = document.getElementById('zoom-level');
+    if (el) el.textContent = Math.round(state.viewZoom * 100) + '%';
 }
 
 // Game Logic
 function startGame() {
     if (!state.image) return;
+    resetView();
     switchScreen('game');
 
     state.showGuide = false; // Reset guide
@@ -254,7 +335,7 @@ function generatePuzzle() {
     let cols = Math.round(rows * imgRatio);
 
     // Safety for small counts
-    if (rows < 2) rows = 2;
+    if (rows < 1) rows = 1;
     if (cols < 2) cols = 2;
 
     state.rows = rows;
@@ -409,9 +490,14 @@ function scatterPieces(keepLocked = false) {
 function draw() {
     const ctx = app.canvas.getContext('2d');
 
-    // Draw Tray Background
+    // Draw Tray Background (always full canvas, before zoom transform)
     ctx.fillStyle = STYLE.trayColor;
     ctx.fillRect(0, 0, app.canvas.width, app.canvas.height);
+
+    // Apply viewport transform
+    ctx.save();
+    ctx.translate(state.viewX, state.viewY);
+    ctx.scale(state.viewZoom, state.viewZoom);
 
     // Draw Board (Frame)
     if (state.image && state.boardRect.w > 0) {
@@ -432,35 +518,40 @@ function draw() {
         ctx.fillStyle = STYLE.boardColor;
         ctx.fillRect(br.x, br.y, br.w, br.h);
 
-        // Draw Guide (Ghost image) - Optional, maybe make it very faint?
+        // Draw Guide (Ghost image)
         if (state.showGuide) {
             ctx.globalAlpha = 0.2;
             ctx.drawImage(state.image, br.x, br.y, br.w, br.h);
             ctx.globalAlpha = 1.0;
         }
-
-        // Grid lines (Optional, for "beginner")
-        // ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-        // ctx.beginPath(); ...
     }
 
-    // Filter pieces to draw dragging one last
-    const renderOrder = [];
-    state.groups.forEach(group => {
-        // Add all pieces, but if this group is dragging, we might want to draw it last.
-        // Simple z-ordering: just iterate groups. 
-        // If we want dragging group on top, we sort.
-    });
-
-    // For now simple loop
-    state.pieces.forEach(p => {
-        // If it's being dragged, skip it here and draw later? 
-        // Or just draw everything in order.
-    });
-
-    // Draw all pieces
-    // Note: We need to draw "connected" pieces together if we want them to look seamless?
-    // Actually, drawing them individually is fine as long as the path is perfect.
+    // Assist mode highlight: draw target slots for dragged pieces
+    if (state.assistMode && state.draggingGroup && state.image) {
+        const scale = state.canvasScale;
+        const br = state.boardRect;
+        const pulseAlpha = 0.25 + 0.15 * Math.sin(Date.now() / 200);
+        state.draggingGroup.forEach(id => {
+            const p = getPiece(id);
+            if (p.isLocked) return;
+            const targetX = br.x + p.c * p.width * scale;
+            const targetY = br.y + p.r * p.height * scale;
+            const w = p.width * scale;
+            const h = p.height * scale;
+            ctx.save();
+            createPiecePath(ctx, targetX, targetY, w, h, p.shapes);
+            ctx.fillStyle = 'rgba(46, 204, 113, ' + pulseAlpha + ')';
+            ctx.shadowColor = '#2ecc71';
+            ctx.shadowBlur = 25;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(46, 204, 113, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        });
+        // Keep pulsing animation
+        requestAnimationFrame(() => { if (state.draggingGroup) draw(); });
+    }
 
     // Sort pieces: non-dragging first, dragging last (so it floats above)
     const sortedPieces = [...state.pieces].sort((a, b) => {
@@ -472,6 +563,9 @@ function draw() {
     });
 
     sortedPieces.forEach(p => drawPiece(ctx, p));
+
+    // Restore viewport transform
+    ctx.restore();
 }
 
 function drawPiece(ctx, p) {
@@ -680,8 +774,12 @@ function onPointerDown(e) {
     if (!state.image) return;
 
     const rect = app.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    // Convert to world coordinates
+    const world = screenToWorld(sx, sy);
+    const x = world.x;
+    const y = world.y;
 
     // Hit test reverse order (top to bottom)
     for (let i = state.pieces.length - 1; i >= 0; i--) {
@@ -689,39 +787,46 @@ function onPointerDown(e) {
         if (isInsidePiece(x, y, p)) {
             if (p.isLocked) continue; // Skip locked pieces, check underneath
             state.draggingGroup = getGroup(p.id);
-            // Calculate offset for all pieces in group relative to pointer
-            // We only need the offset for the specific piece we clicked, 
-            // and we apply delta to all.
-            state.dragAnchor = { x, y };
+            state.dragAnchor = { x: sx, y: sy };
             state.pieces.forEach(piece => {
                 if (state.draggingGroup.includes(piece.id)) {
                     piece.startX = piece.x;
                     piece.startY = piece.y;
-
-                    // Also store initial offset relative to group anchor just in case?
                 }
             });
-
-            // Move to end of array to draw on top
-            // (Strictly we should reorder the array or use a display list, 
-            // but for simple logic we just track 'draggingGroup' and draw it last)
 
             app.canvas.setPointerCapture(e.pointerId);
             draw();
             return;
         }
     }
+
+    // No piece hit -> start panning (if zoomed)
+    if (state.viewZoom !== 1 || state.viewX !== 0 || state.viewY !== 0) {
+        state.isPanning = true;
+        state.panAnchor = { x: sx, y: sy };
+        state.panStart = { x: state.viewX, y: state.viewY };
+        app.canvas.setPointerCapture(e.pointerId);
+    }
 }
 
 function onPointerMove(e) {
+    const rect = app.canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+
+    if (state.isPanning) {
+        state.viewX = state.panStart.x + (sx - state.panAnchor.x);
+        state.viewY = state.panStart.y + (sy - state.panAnchor.y);
+        draw();
+        return;
+    }
+
     if (!state.draggingGroup) return;
 
-    const rect = app.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const dx = x - state.dragAnchor.x;
-    const dy = y - state.dragAnchor.y;
+    // Delta in screen space, convert to world delta
+    const dx = (sx - state.dragAnchor.x) / state.viewZoom;
+    const dy = (sy - state.dragAnchor.y) / state.viewZoom;
 
     state.draggingGroup.forEach(id => {
         const p = getPiece(id);
@@ -733,6 +838,12 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
+    if (state.isPanning) {
+        state.isPanning = false;
+        app.canvas.releasePointerCapture(e.pointerId);
+        return;
+    }
+
     if (!state.draggingGroup) return;
 
     // Check snapping

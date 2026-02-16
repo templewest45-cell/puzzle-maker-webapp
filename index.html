@@ -36,6 +36,19 @@
 
                     <h2>2. 難易度を選択</h2>
                     <div class="difficulty-container">
+                        <!-- Green Group - Super Easy -->
+                        <div class="diff-group green-group">
+                            <h3>かんたん</h3>
+                            <div class="buttons-grid">
+                                <button class="diff-btn" data-pieces="2">
+                                    <span class="count">2ピース</span>
+                                </button>
+                                <button class="diff-btn" data-pieces="4">
+                                    <span class="count">4ピース</span>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Blue Group -->
                         <div class="diff-group blue-group">
                             <h3>おすすめ</h3>
@@ -86,6 +99,12 @@
                     <button id="save-btn" class="secondary-btn">一時保存</button>
                     <div class="timer" id="timer">00:00</div>
                     <button id="hint-btn" class="secondary-btn">見本を見る</button>
+                    <button id="assist-btn" class="secondary-btn">アシスト</button>
+                    <div class="zoom-controls">
+                        <button id="zoom-out-btn" class="secondary-btn zoom-btn">−</button>
+                        <span id="zoom-level">100%</span>
+                        <button id="zoom-in-btn" class="secondary-btn zoom-btn">+</button>
+                    </div>
                     <button id="reset-btn" class="secondary-btn">リセット</button>
                 </div>
                 <div id="canvas-container">
