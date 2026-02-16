@@ -234,13 +234,41 @@ h3 {
 /* Game Screen */
 .toolbar {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
+    gap: 6px;
     margin-bottom: 15px;
     background: var(--card-bg);
-    padding: 10px 20px;
+    padding: 8px 10px;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+}
+
+@media (max-width: 600px) {
+    .toolbar {
+        gap: 4px;
+        padding: 6px 6px;
+    }
+
+    .secondary-btn {
+        padding: 6px 8px;
+        font-size: 0.75rem;
+    }
+
+    .timer {
+        font-size: 1.1rem;
+    }
+
+    .zoom-btn {
+        width: 28px;
+        height: 28px;
+    }
+
+    #zoom-level {
+        font-size: 0.7rem;
+        min-width: 32px;
+    }
 }
 
 .secondary-btn {
@@ -372,6 +400,28 @@ canvas {
     background: var(--success);
     color: white;
     border-color: var(--success);
+}
+
+/* Praise Message */
+.praise-message {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #e67e22;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+    animation: praiseIn 0.5s ease;
+}
+
+@keyframes praiseIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Toast Notification */

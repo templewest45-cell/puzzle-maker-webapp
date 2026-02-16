@@ -145,6 +145,12 @@ function initControls() {
             document.querySelector('.toolbar').style.display = 'none';
             // Show back button wrapper below canvas
             if (backFromViewWrap) backFromViewWrap.style.display = 'block';
+            // Show praise for easy/recommended modes
+            const praiseEl = document.getElementById('praise-message');
+            if (praiseEl) {
+                const isEasyMode = state.targetPieceCount <= 56;
+                praiseEl.style.display = isEasyMode ? 'block' : 'none';
+            }
             // Redraw to clear confetti
             draw();
         });
@@ -156,6 +162,9 @@ function initControls() {
             state.isComplete = false;
             document.querySelector('.toolbar').style.display = '';
             if (backFromViewWrap) backFromViewWrap.style.display = 'none';
+            // Hide praise
+            const praiseEl = document.getElementById('praise-message');
+            if (praiseEl) praiseEl.style.display = 'none';
             switchScreen('setup');
         });
     }
@@ -1091,7 +1100,7 @@ function playFanfare() {
 
             const start = now + i * 0.1;
             osc.start(start);
-            gain.gain.setValueAtTime(0.5, start);
+            gain.gain.setValueAtTime(0.15, start);
             gain.gain.exponentialRampToValueAtTime(0.01, start + 1.5);
             osc.stop(start + 1.5);
         });
@@ -1105,7 +1114,7 @@ function playFanfare() {
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start(now + 0.4);
-            gain.gain.setValueAtTime(0.2, now + 0.4);
+            gain.gain.setValueAtTime(0.08, now + 0.4);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 2.0);
             osc.stop(now + 2.0);
         });
