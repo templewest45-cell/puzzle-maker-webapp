@@ -88,7 +88,15 @@
                         </div>
                     </div>
 
-                    <button id="start-btn" disabled>パズルを作成する</button>
+                    <button id="start-btn" disabled>パズルを始める</button>
+                    <div style="display:flex; gap:10px; margin-top:12px;">
+                        <button id="achievements-btn"
+                            style="flex:1; padding:12px; background:linear-gradient(135deg, #f39c12, #e67e22); color:white; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">🏆
+                            実績</button>
+                        <button id="help-btn"
+                            style="flex:1; padding:12px; background:linear-gradient(135deg, #3498db, #2980b9); color:white; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">❓
+                            遊び方</button>
+                    </div>
                 </div>
             </section>
 
@@ -146,8 +154,66 @@
                 </div>
             </div>
 
+            <!-- Help Modal -->
+            <div id="help-modal" class="modal" hidden>
+                <div class="modal-content help-modal-content">
+                    <h2>❓ 遊び方</h2>
+                    <div class="help-steps">
+                        <div class="help-section">
+                            <h3>🖼️ 基本の遊び方</h3>
+                            <ol>
+                                <li><strong>画像を選ぶ</strong>：クリックで画像を選択、または「サンプル画像を使用」</li>
+                                <li><strong>難易度を選ぶ</strong>：ピース数を選択</li>
+                                <li><strong>ピースをドラッグ</strong>：正しい位置に置くとピタッとはまります</li>
+                            </ol>
+                        </div>
+                        <div class="help-section">
+                            <h3>🛠️ ツールバーの機能</h3>
+                            <div class="help-feature">
+                                <span class="help-icon">💾</span>
+                                <div><strong>一時保存</strong>：途中で保存して、「続きから遊ぶ」で再開できます</div>
+                            </div>
+                            <div class="help-feature">
+                                <span class="help-icon">👁️</span>
+                                <div><strong>見本を見る</strong>：完成図が背景に薄く表示されます</div>
+                            </div>
+                            <div class="help-feature">
+                                <span class="help-icon">✨</span>
+                                <div><strong>アシスト</strong>：ONにすると、ピースをつかんだときに<strong>正しい位置が緑に光ります</strong></div>
+                            </div>
+                            <div class="help-feature">
+                                <span class="help-icon">🔍</span>
+                                <div><strong>拡大（+/-）</strong>：ズームできます。拡大中は空白部分をドラッグで視点移動</div>
+                            </div>
+                            <div class="help-feature">
+                                <span class="help-icon">🔄</span>
+                                <div><strong>リセット</strong>：「全てバラバラ」または「合っていないピースだけ」を選べます</div>
+                            </div>
+                        </div>
+                        <div class="help-section">
+                            <h3>🌟 完成したら</h3>
+                            <p>「完成した絵を見る」で完成図を観賞できます。実績も解除されます！</p>
+                        </div>
+                    </div>
+                    <button id="close-help-btn" class="secondary-btn"
+                        style="margin-top:16px; padding:10px 30px;">閉じる</button>
+                </div>
+            </div>
+
+            <!-- Achievement Modal -->
+            <div id="achievement-modal" class="modal" hidden>
+                <div class="modal-content achievement-modal-content">
+                    <h2>🏆 実績</h2>
+                    <div id="achievement-grid" class="achievement-grid"></div>
+                    <button id="close-achievements-btn" class="secondary-btn"
+                        style="margin-top:16px; padding:10px 30px;">閉じる</button>
+                </div>
+            </div>
+
             <!-- Notification Toast -->
             <div id="toast" class="toast" hidden>保存しました！</div>
+            <!-- Achievement Toast -->
+            <div id="achievement-toast" class="achievement-toast" hidden></div>
         </main>
     </div>
     <script src="script.js"></script>

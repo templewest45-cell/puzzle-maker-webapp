@@ -223,6 +223,10 @@ function initControls() {
         if (!app.screens.game.hidden) resizeCanvas();
     });
 
+    // Prevent right-click / long-press context menu
+    app.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.getElementById('game-screen').addEventListener('contextmenu', (e) => e.preventDefault());
+
     // Canvas Interaction
     app.canvas.addEventListener('pointerdown', onPointerDown);
     app.canvas.addEventListener('pointermove', onPointerMove);
@@ -1009,6 +1013,9 @@ function checkCompletion() {
         // Effects
         triggerConfetti();
         playFanfare();
+
+        // Track stats & achievements
+        onPuzzleComplete();
     }
 }
 
@@ -1344,5 +1351,261 @@ if (resumeBtn) {
 }
 
 checkSaveData();
+
+// -------------------------------------------------------------
+// Achievement System
+// -------------------------------------------------------------
+
+const STATS_KEY = 'jigsaw_puzzle_stats_v1';
+
+const ACHIEVEMENTS = [
+    {
+        id: 'first_clear',
+        name: '\u306f\u3058\u3081\u306e\u4e00\u6b69',
+        desc: '\u521d\u3081\u3066\u30d1\u30ba\u30eb\u3092\u30af\u30ea\u30a2',
+        icon: '\ud83c\udfaf',
+        check: (s) => s.totalClears >= 1
+    },
+    {
+        id: 'easy_master',
+        name: '\u304b\u3093\u305f\u3093\u30de\u30b9\u30bf\u30fc',
+        desc: '\u304b\u3093\u305f\u3093\u30e2\u30fc\u30c9\u30925\u56de\u30af\u30ea\u30a2',
+        icon: '\u2b50',
+        check: (s) => ((s.clearsByDifficulty['2'] || 0) + (s.clearsByDifficulty['4'] || 0)) >= 5
+    },
+    {
+        id: 'recommend_clear',
+        name: '\u304a\u3059\u3059\u3081\u30af\u30ea\u30a2',
+        desc: '\u304a\u3059\u3059\u3081\u96e3\u6613\u5ea6\u309210\u56de\u30af\u30ea\u30a2',
+        icon: '\ud83c\udfc5',
+        check: (s) => {
+            const keys = ['9', '20', '35', '56'];
+            let sum = 0;
+            keys.forEach(k => sum += (s.clearsByDifficulty[k] || 0));
+            return sum >= 10;
+        }
+    },
+    {
+        id: 'challenger',
+        name: '\u30c1\u30e3\u30ec\u30f3\u30b8\u30e3\u30fc',
+        desc: '\u9ad8\u96e3\u6613\u5ea6\u30923\u56de\u30af\u30ea\u30a2',
+        icon: '\ud83c\udfc6',
+        check: (s) => {
+            const keys = ['150', '500', '1000'];
+            let sum = 0;
+            keys.forEach(k => sum += (s.clearsByDifficulty[k] || 0));
+            return sum >= 3;
+        }
+    },
+    {
+        id: 'speed_star',
+        name: '\u30b9\u30d4\u30fc\u30c9\u30b9\u30bf\u30fc',
+        desc: '1\u5206\u4ee5\u5185\u306b\u30af\u30ea\u30a2',
+        icon: '\u26a1',
+        check: (s) => s.fastestTime !== null && s.fastestTime <= 60
+    },
+    {
+        id: 'puzzle_lover',
+        name: '\u30d1\u30ba\u30eb\u5927\u597d\u304d',
+        desc: '\u5408\u8a0830\u56de\u30af\u30ea\u30a2',
+        icon: '\ud83d\udc8e',
+        check: (s) => s.totalClears >= 30
+    },
+    {
+        id: 'ironman',
+        name: '\u9244\u4eba',
+        desc: '\u5408\u8a08100\u56de\u30af\u30ea\u30a2',
+        icon: '\ud83d\udc51',
+        check: (s) => s.totalClears >= 100
+    },
+    // Per-difficulty achievements
+    { id: 'clear_2', name: '2\u30d4\u30fc\u30b9\u30af\u30ea\u30a2', desc: '2\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83e\udde9', diffKey: '2', check: (s) => (s.clearsByDifficulty['2'] || 0) >= 1 },
+    { id: 'clear_4', name: '4\u30d4\u30fc\u30b9\u30af\u30ea\u30a2', desc: '4\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83e\udde9', diffKey: '4', check: (s) => (s.clearsByDifficulty['4'] || 0) >= 1 },
+    { id: 'clear_9', name: '6~12\u30d4\u30fc\u30b9\u30af\u30ea\u30a2', desc: '6~12\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83d\uddbc\ufe0f', diffKey: '9', check: (s) => (s.clearsByDifficulty['9'] || 0) >= 1 },
+    { id: 'clear_20', name: '12~24\u30d4\u30fc\u30b9\u30af\u30ea\u30a2', desc: '12~24\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83d\uddbc\ufe0f', diffKey: '20', check: (s) => (s.clearsByDifficulty['20'] || 0) >= 1 },
+    { id: 'clear_35', name: '24~40\u30d4\u30fc\u30b9\u30af\u30ea\u30a2', desc: '24~40\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83d\uddbc\ufe0f', diffKey: '35', check: (s) => (s.clearsByDifficulty['35'] || 0) >= 1 },
+    { id: 'clear_56', name: '50~60\u30d4\u30fc\u30b9\u30af\u30ea\u30a2', desc: '50~60\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83d\uddbc\ufe0f', diffKey: '56', check: (s) => (s.clearsByDifficulty['56'] || 0) >= 1 },
+    { id: 'clear_150', name: '\u521d\u5fc3\u8005\u3080\u3051\u30af\u30ea\u30a2', desc: '100~300\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83d\udd25', diffKey: '150', check: (s) => (s.clearsByDifficulty['150'] || 0) >= 1 },
+    { id: 'clear_500', name: '\u3058\u3063\u304f\u308a\u30af\u30ea\u30a2', desc: '500\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83d\udd25', diffKey: '500', check: (s) => (s.clearsByDifficulty['500'] || 0) >= 1 },
+    { id: 'clear_1000', name: '\u8d85\u96e3\u554f\u30af\u30ea\u30a2', desc: '1000\u30d4\u30fc\u30b9\u3092\u30af\u30ea\u30a2', icon: '\ud83c\udf1f', diffKey: '1000', check: (s) => (s.clearsByDifficulty['1000'] || 0) >= 1 },
+    // Master achievement
+    {
+        id: 'all_clear',
+        name: '\u5168\u96e3\u6613\u5ea6\u5236\u8987',
+        desc: '\u5168\u3066\u306e\u96e3\u6613\u5ea6\u3092\u30af\u30ea\u30a2',
+        icon: '\ud83c\udf08',
+        check: (s) => {
+            const allKeys = ['2', '4', '9', '20', '35', '56', '150', '500', '1000'];
+            return allKeys.every(k => (s.clearsByDifficulty[k] || 0) >= 1);
+        }
+    }
+];
+
+function loadStats() {
+    try {
+        const json = localStorage.getItem(STATS_KEY);
+        if (json) return JSON.parse(json);
+    } catch (e) {
+        console.error('Stats load failed', e);
+    }
+    return { totalClears: 0, clearsByDifficulty: {}, fastestTime: null, unlockedAchievements: [] };
+}
+
+function saveStats(stats) {
+    try {
+        localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    } catch (e) {
+        console.error('Stats save failed', e);
+    }
+}
+
+function onPuzzleComplete() {
+    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    const diffKey = String(state.targetPieceCount);
+
+    const stats = loadStats();
+    stats.totalClears = (stats.totalClears || 0) + 1;
+    stats.clearsByDifficulty[diffKey] = (stats.clearsByDifficulty[diffKey] || 0) + 1;
+    if (stats.fastestTime === null || elapsed < stats.fastestTime) {
+        stats.fastestTime = elapsed;
+    }
+
+    // Check for newly unlocked achievements
+    const newlyUnlocked = [];
+    ACHIEVEMENTS.forEach(ach => {
+        if (!stats.unlockedAchievements.includes(ach.id) && ach.check(stats)) {
+            stats.unlockedAchievements.push(ach.id);
+            newlyUnlocked.push(ach);
+        }
+    });
+
+    saveStats(stats);
+
+    // Show toast for each new achievement (staggered)
+    newlyUnlocked.forEach((ach, i) => {
+        setTimeout(() => showAchievementToast(ach), 1500 + i * 2500);
+    });
+}
+
+function showAchievementToast(ach) {
+    const el = document.getElementById('achievement-toast');
+    if (!el) return;
+    el.textContent = ach.icon + ' \u5b9f\u7e3e\u89e3\u9664\uff1a' + ach.name;
+    el.hidden = false;
+    el.style.display = 'block';
+    // Re-trigger animation
+    el.style.animation = 'none';
+    el.offsetHeight; // Force reflow
+    el.style.animation = '';
+
+    setTimeout(() => {
+        el.hidden = true;
+        el.style.display = 'none';
+    }, 2500);
+}
+
+function renderAchievementModal() {
+    const grid = document.getElementById('achievement-grid');
+    if (!grid) return;
+
+    const stats = loadStats();
+    grid.innerHTML = '';
+
+    ACHIEVEMENTS.forEach(ach => {
+        const unlocked = stats.unlockedAchievements.includes(ach.id);
+        const card = document.createElement('div');
+        card.className = 'achievement-card ' + (unlocked ? 'unlocked' : 'locked');
+
+        // Progress text
+        let progressText = '';
+        if (!unlocked) {
+            progressText = getProgressText(ach, stats);
+        }
+
+        card.innerHTML =
+            '<div class="ach-icon">' + ach.icon + '</div>' +
+            '<div class="ach-info">' +
+            '<div class="ach-name">' + ach.name + '</div>' +
+            '<div class="ach-desc">' + ach.desc + '</div>' +
+            (progressText ? '<div class="ach-progress">' + progressText + '</div>' : '') +
+            '</div>';
+
+        grid.appendChild(card);
+    });
+}
+
+function getProgressText(ach, stats) {
+    // Per-difficulty achievements
+    if (ach.diffKey) {
+        const cnt = stats.clearsByDifficulty[ach.diffKey] || 0;
+        return cnt >= 1 ? '' : '0/1';
+    }
+    switch (ach.id) {
+        case 'first_clear':
+            return stats.totalClears + '/1';
+        case 'easy_master': {
+            const cnt = (stats.clearsByDifficulty['2'] || 0) + (stats.clearsByDifficulty['4'] || 0);
+            return cnt + '/5';
+        }
+        case 'recommend_clear': {
+            let sum = 0;
+            ['9', '20', '35', '56'].forEach(k => sum += (stats.clearsByDifficulty[k] || 0));
+            return sum + '/10';
+        }
+        case 'challenger': {
+            let sum = 0;
+            ['150', '500', '1000'].forEach(k => sum += (stats.clearsByDifficulty[k] || 0));
+            return sum + '/3';
+        }
+        case 'speed_star':
+            return stats.fastestTime !== null ? stats.fastestTime + '\u79d2' : '--';
+        case 'puzzle_lover':
+            return stats.totalClears + '/30';
+        case 'ironman':
+            return stats.totalClears + '/100';
+        case 'all_clear': {
+            const allKeys = ['2', '4', '9', '20', '35', '56', '150', '500', '1000'];
+            const cleared = allKeys.filter(k => (stats.clearsByDifficulty[k] || 0) >= 1).length;
+            return cleared + '/' + allKeys.length;
+        }
+        default:
+            return '';
+    }
+}
+
+// Achievement Modal UI
+const achievementsBtn = document.getElementById('achievements-btn');
+const achievementModal = document.getElementById('achievement-modal');
+const closeAchievementsBtn = document.getElementById('close-achievements-btn');
+
+if (achievementsBtn) {
+    achievementsBtn.addEventListener('click', () => {
+        renderAchievementModal();
+        achievementModal.hidden = false;
+    });
+}
+
+if (closeAchievementsBtn) {
+    closeAchievementsBtn.addEventListener('click', () => {
+        achievementModal.hidden = true;
+    });
+}
+
+// Help Modal UI
+const helpBtn = document.getElementById('help-btn');
+const helpModal = document.getElementById('help-modal');
+const closeHelpBtn = document.getElementById('close-help-btn');
+
+if (helpBtn) {
+    helpBtn.addEventListener('click', () => {
+        helpModal.hidden = false;
+    });
+}
+
+if (closeHelpBtn) {
+    closeHelpBtn.addEventListener('click', () => {
+        helpModal.hidden = true;
+    });
+}
 
 initControls();
