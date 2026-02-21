@@ -19,9 +19,22 @@
             <!-- Setup Screen -->
             <section id="setup-screen" class="active">
                 <div class="card">
-                    <button id="resume-btn"
-                        style="width:100%; margin-bottom:20px; background:#2ecc71; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold; font-size:1.1rem; cursor:pointer;"
-                        hidden>続きから遊ぶ</button>
+                    <div id="save-slots-area" style="margin-bottom:16px;">
+                        <button id="resume-auto-btn" class="save-slot-btn" hidden>
+                            <span class="slot-icon">🔄</span>
+                            <div class="slot-info">
+                                <div class="slot-label">自動保存から続ける</div>
+                                <div class="slot-meta" id="auto-slot-meta">--</div>
+                            </div>
+                        </button>
+                        <button id="resume-save-btn" class="save-slot-btn" hidden>
+                            <span class="slot-icon">💾</span>
+                            <div class="slot-info">
+                                <div class="slot-label">セーブから続ける</div>
+                                <div class="slot-meta" id="save-slot-meta">--</div>
+                            </div>
+                        </button>
+                    </div>
                     <h2>1. 画像を選択</h2>
                     <div class="upload-area" id="drop-zone">
                         <input type="file" id="image-upload" accept="image/*" hidden>
@@ -104,7 +117,7 @@
             <section id="game-screen">
                 <div class="toolbar">
                     <button id="back-btn" class="secondary-btn">← 戻る</button>
-                    <button id="save-btn" class="secondary-btn">一時保存</button>
+                    <button id="save-btn" class="secondary-btn">セーブ</button>
                     <div class="timer" id="timer">00:00</div>
                     <button id="hint-btn" class="secondary-btn">見本を見る</button>
                     <button id="assist-btn" class="secondary-btn">アシスト</button>
@@ -216,7 +229,7 @@
             <div id="achievement-toast" class="achievement-toast" hidden></div>
         </main>
     </div>
-    <script src="script.js"></script>
+    <script src="script.js?v=2"></script>
 </body>
 
 </html>

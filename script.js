@@ -92,20 +92,16 @@ function initControls() {
         sampleBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            console.log('Sample button clicked');
             const img = new Image();
             img.onload = () => {
-                console.log('Sample image loaded');
                 state.image = img;
+                state.imageSrc = 'sample.png'; // path stored for saving (avoids canvas taint)
                 app.upload.preview.src = img.src;
                 app.upload.preview.hidden = false;
                 app.upload.placeholder.hidden = true;
                 updateStartButton();
             };
-            img.onerror = (err) => {
-                console.error('Failed to load sample image', err);
-                alert('サンプル画像の読み込みに失敗しました。');
-            };
+            img.onerror = () => alert('\u30b5\u30f3\u30d7\u30eb\u753b\u50cf\u306e\u8aad\u307f\u8fbc\u307f\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002');
             img.src = 'sample.png';
         });
     }
@@ -253,6 +249,7 @@ function handleFile(file) {
         const img = new Image();
         img.onload = () => {
             state.image = img;
+            state.imageSrc = e.target.result; // data URL stored for save
             app.upload.preview.src = img.src;
             app.upload.preview.hidden = false;
             app.upload.placeholder.hidden = true;
@@ -867,6 +864,11 @@ function onPointerUp(e) {
 
     checkCompletion();
     draw();
+
+    // Auto-save on every piece drop (silent)
+    if (!state.isComplete) {
+        saveGame(true);
+    }
 }
 
 function getPiece(id) {
@@ -1181,8 +1183,10 @@ function showToast(msg) {
 
 // Save & Resume Logic
 const saveBtn = document.getElementById('save-btn');
-const resumeBtn = document.getElementById('resume-btn');
+const resumeAutoBtn = document.getElementById('resume-auto-btn');
+const resumeSaveBtn = document.getElementById('resume-save-btn');
 const SAVE_KEY = 'jigsaw_puzzle_save_v1';
+const AUTOSAVE_KEY = 'jigsaw_puzzle_autosave_v1';
 
 function compressImage(img, maxSize, quality) {
     var canvas = document.createElement('canvas');
@@ -1207,12 +1211,44 @@ function compressImage(img, maxSize, quality) {
     return canvas.toDataURL('image/jpeg', quality);
 }
 
-function saveGame() {
-    if (!state.image) return;
+function saveGame(silent) {
+    if (!state.image) { console.warn('[saveGame] no image, aborting'); return; }
 
+    var key = silent === true ? AUTOSAVE_KEY : SAVE_KEY;
     var elapsed = Math.floor((Date.now() - state.startTime) / 1000);
 
-    // Try progressively smaller sizes/quality to fit in localStorage
+    var baseData = {
+        pieces: state.pieces,
+        groups: state.groups,
+        boardRect: state.boardRect,
+        rows: state.rows,
+        cols: state.cols,
+        pieceWidth: state.pieceWidth,
+        pieceHeight: state.pieceHeight,
+        canvasScale: state.canvasScale,
+        targetPieceCount: state.targetPieceCount,
+        elapsedTime: elapsed,
+        originalWidth: state.image.naturalWidth || state.image.width,
+        originalHeight: state.image.naturalHeight || state.image.height,
+        savedAt: Date.now()
+    };
+
+    // If imageSrc is a path (not data URL), store it directly without canvas compression
+    var src = state.imageSrc || '';
+    if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+        baseData.imageSrc = src;
+        try {
+            localStorage.setItem(key, JSON.stringify(baseData));
+            if (!silent) showToast('\u4fdd\u5b58\u3057\u307e\u3057\u305f\uff01');
+            checkSaveData();
+        } catch (e) {
+            console.error('Save failed:', e);
+            if (!silent) alert('\u4fdd\u5b58\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002');
+        }
+        return;
+    }
+
+    // For data URL images: try progressively smaller compression
     var attempts = [
         { maxSize: 1200, quality: 0.7 },
         { maxSize: 800, quality: 0.6 },
@@ -1223,41 +1259,26 @@ function saveGame() {
     var saved = false;
     for (var a = 0; a < attempts.length; a++) {
         var compressed = compressImage(state.image, attempts[a].maxSize, attempts[a].quality);
-
-        var data = {
-            pieces: state.pieces,
-            groups: state.groups,
-            boardRect: state.boardRect,
-            rows: state.rows,
-            cols: state.cols,
-            pieceWidth: state.pieceWidth,
-            pieceHeight: state.pieceHeight,
-            canvasScale: state.canvasScale,
-            targetPieceCount: state.targetPieceCount,
-            elapsedTime: elapsed,
-            imageSrc: compressed,
-            originalWidth: state.image.naturalWidth || state.image.width,
-            originalHeight: state.image.naturalHeight || state.image.height
-        };
+        baseData.imageSrc = compressed;
 
         try {
-            localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-            showToast('\u4fdd\u5b58\u3057\u307e\u3057\u305f\uff01');
+            localStorage.setItem(key, JSON.stringify(baseData));
+            if (!silent) showToast('\u4fdd\u5b58\u3057\u307e\u3057\u305f\uff01');
             checkSaveData();
             saved = true;
             break;
         } catch (e) {
-            console.warn('Save attempt ' + (a + 1) + ' failed (maxSize=' + attempts[a].maxSize + '), trying smaller...', e);
+            console.warn('Save attempt ' + (a + 1) + ' failed, trying smaller...', e);
         }
     }
 
     if (!saved) {
-        alert('\u4fdd\u5b58\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002\n\u753b\u50cf\u306e\u30b5\u30a4\u30ba\u304c\u5927\u304d\u3059\u304e\u307e\u3059\u3002');
+        if (!silent) alert('\u4fdd\u5b58\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002\n\u753b\u50cf\u306e\u30b5\u30a4\u30ba\u304c\u5927\u304d\u3059\u304e\u307e\u3059\u3002');
     }
 }
 
-function loadGame() {
-    var json = localStorage.getItem(SAVE_KEY);
+function loadGame(key) {
+    var json = localStorage.getItem(key || SAVE_KEY);
     if (!json) return;
 
     try {
@@ -1322,18 +1343,56 @@ function loadGame() {
     }
 }
 
+function formatSavedAt(ts) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '/' + pad(d.getMonth() + 1) + '/' + pad(d.getDate()) +
+        ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function slotMeta(data) {
+    var pieces = data.targetPieceCount ? data.targetPieceCount + '\u30d4\u30fc\u30b9 \u00b7 ' : '';
+    var time = formatSavedAt(data.savedAt) || '\u4fdd\u5b58\u65e5\u6642\u306a\u3057';
+    return pieces + time;
+}
+
 function checkSaveData() {
     try {
-        var data = localStorage.getItem(SAVE_KEY);
-        if (data) {
-            if (resumeBtn) {
-                resumeBtn.hidden = false;
-                resumeBtn.style.display = 'block';
+        var autoJson = localStorage.getItem(AUTOSAVE_KEY);
+        var saveJson = localStorage.getItem(SAVE_KEY);
+        var autoBtn = document.getElementById('resume-auto-btn');
+        var saveBtn2 = document.getElementById('resume-save-btn');
+        var autoMeta = document.getElementById('auto-slot-meta');
+        var saveMeta = document.getElementById('save-slot-meta');
+
+        if (autoBtn) {
+            if (autoJson) {
+                try {
+                    var d = JSON.parse(autoJson);
+                    if (autoMeta) autoMeta.textContent = slotMeta(d);
+                } catch (e) {
+                    if (autoMeta) autoMeta.textContent = '\u4fdd\u5b58\u65e5\u6642\u306a\u3057';
+                    console.error('[AutoSave] JSON parse error:', e);
+                }
+                autoBtn.hidden = false;
+            } else {
+                autoBtn.hidden = true;
             }
-        } else {
-            if (resumeBtn) {
-                resumeBtn.hidden = true;
-                resumeBtn.style.display = 'none';
+        }
+
+        if (saveBtn2) {
+            if (saveJson) {
+                try {
+                    var d2 = JSON.parse(saveJson);
+                    if (saveMeta) saveMeta.textContent = slotMeta(d2);
+                } catch (e) {
+                    if (saveMeta) saveMeta.textContent = '\u4fdd\u5b58\u65e5\u6642\u306a\u3057';
+                    console.error('[Save] JSON parse error:', e);
+                }
+                saveBtn2.hidden = false;
+            } else {
+                saveBtn2.hidden = true;
             }
         }
     } catch (e) {
@@ -1343,11 +1402,24 @@ function checkSaveData() {
 
 // Bind events
 if (saveBtn) {
-    saveBtn.onclick = saveGame;
+    saveBtn.addEventListener('click', function () { saveGame(false); });
 }
 
-if (resumeBtn) {
-    resumeBtn.onclick = loadGame;
+var _resumeAutoBtn = document.getElementById('resume-auto-btn');
+var _resumeSaveBtn = document.getElementById('resume-save-btn');
+
+if (_resumeAutoBtn) {
+    _resumeAutoBtn.addEventListener('click', function () {
+        console.log('[Slot] Auto-save clicked');
+        loadGame(AUTOSAVE_KEY);
+    });
+}
+
+if (_resumeSaveBtn) {
+    _resumeSaveBtn.addEventListener('click', function () {
+        console.log('[Slot] Manual save clicked');
+        loadGame(SAVE_KEY);
+    });
 }
 
 checkSaveData();
