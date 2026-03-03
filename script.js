@@ -783,9 +783,21 @@ function drawEdge(ctx, x1, y1, x2, y2, type) {
 function onPointerDown(e) {
     if (!state.image) return;
 
+    // Palm rejection: ignore large contact areas or high pressure which typically indicates a palm resting on the screen.
+    if (e.pointerType === 'touch' && (e.width > 30 || e.height > 30 || e.pressure > 0.8)) {
+        return;
+    }
+
+    // Ensure we are tracking a single active pointer for dragging to avoid multi-touch confusion
+    if (state.activePointerId != null && state.activePointerId !== e.pointerId) {
+        return;
+    }
+    state.activePointerId = e.pointerId;
+
     const rect = app.canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
+
     // Convert to world coordinates
     const world = screenToWorld(sx, sy);
     const x = world.x;
@@ -821,6 +833,15 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
+    if (state.activePointerId != null && state.activePointerId !== e.pointerId) {
+        return;
+    }
+
+    // Palm rejection on move as well
+    if (e.pointerType === 'touch' && (e.width > 30 || e.height > 30 || e.pressure > 0.8)) {
+        return;
+    }
+
     const rect = app.canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
@@ -848,6 +869,9 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
+    if (state.activePointerId !== e.pointerId) return;
+    state.activePointerId = null;
+
     if (state.isPanning) {
         state.isPanning = false;
         app.canvas.releasePointerCapture(e.pointerId);
