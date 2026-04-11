@@ -1,4 +1,4 @@
-﻿// DOM Elements
+// DOM Elements
 const app = {
     screens: {
         setup: document.getElementById('setup-screen'),
@@ -497,7 +497,19 @@ function scatterPieces(keepLocked = false) {
 // Rendering & Math
 // -------------------------------------------------------------
 
+let drawPending = false;
+
 function draw() {
+    if (!drawPending) {
+        drawPending = true;
+        requestAnimationFrame(() => {
+            doDraw();
+            drawPending = false;
+        });
+    }
+}
+
+function doDraw() {
     const ctx = app.canvas.getContext('2d');
 
     // Draw Tray Background (always full canvas, before zoom transform)
@@ -783,10 +795,8 @@ function drawEdge(ctx, x1, y1, x2, y2, type) {
 function onPointerDown(e) {
     if (!state.image) return;
 
-    // Palm rejection: ignore large contact areas or high pressure which typically indicates a palm resting on the screen.
-    if (e.pointerType === 'touch' && (e.width > 30 || e.height > 30 || e.pressure > 0.8)) {
-        return;
-    }
+    // Palm rejection is disabled to prevent issues with iPad and other touch devices.
+    // (Previously ignored large width/height/pressure assuming it was a palm)
 
     // Ensure we are tracking a single active pointer for dragging to avoid multi-touch confusion
     if (state.activePointerId != null && state.activePointerId !== e.pointerId) {
@@ -837,10 +847,7 @@ function onPointerMove(e) {
         return;
     }
 
-    // Palm rejection on move as well
-    if (e.pointerType === 'touch' && (e.width > 30 || e.height > 30 || e.pressure > 0.8)) {
-        return;
-    }
+    // Palm rejection is disabled.
 
     const rect = app.canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
