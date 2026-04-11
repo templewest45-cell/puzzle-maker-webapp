@@ -227,6 +227,8 @@ function initControls() {
     app.canvas.addEventListener('pointerdown', onPointerDown);
     app.canvas.addEventListener('pointermove', onPointerMove);
     app.canvas.addEventListener('pointerup', onPointerUp);
+    app.canvas.addEventListener('pointercancel', onPointerCancel);
+    app.canvas.addEventListener('pointerout', onPointerCancel);
     // Prevent default touch actions usually
     app.canvas.style.touchAction = 'none';
 }
@@ -800,7 +802,8 @@ function onPointerDown(e) {
 
     // Ensure we are tracking a single active pointer for dragging to avoid multi-touch confusion
     if (state.activePointerId != null && state.activePointerId !== e.pointerId) {
-        return;
+        // Force cancel the old pointer if a new one interacts, preventing deadlocks on missing cancel events
+        onPointerCancel({ pointerId: state.activePointerId });
     }
     state.activePointerId = e.pointerId;
 
@@ -900,6 +903,23 @@ function onPointerUp(e) {
     if (!state.isComplete) {
         saveGame(true);
     }
+}
+
+function onPointerCancel(e) {
+    if (state.activePointerId !== e.pointerId) return;
+    state.activePointerId = null;
+
+    if (state.isPanning) {
+        state.isPanning = false;
+        app.canvas.releasePointerCapture(e.pointerId);
+        return;
+    }
+
+    if (state.draggingGroup) {
+        state.draggingGroup = null;
+    }
+    app.canvas.releasePointerCapture(e.pointerId);
+    draw();
 }
 
 function getPiece(id) {
